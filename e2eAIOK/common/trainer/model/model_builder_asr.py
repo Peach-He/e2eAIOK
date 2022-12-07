@@ -52,3 +52,15 @@ class ModelBuilderASR(ModelBuilder):
         model = torch.nn.ModuleDict(modules)
         
         return model
+    
+    def load_pretrained_model(self):
+        model = self._init_model()
+        model_list = torch.nn.ModuleList([model["CNN"], model["Transformer"], model["seq_lin"], model["ctc_lin"]])
+        pretrained_dict = torch.load(self.cfg["ckpt"], map_location=torch.device('cpu'))
+        model_list_dict = model_list.state_dict()
+        model_list_keys = list(model_list_dict.keys())
+        pretrained_keys = pretrained_dict.keys()
+        for i, key in enumerate(pretrained_keys):
+            model_list_dict[model_list_keys[i]].copy_(pretrained_dict[key])
+        
+        return model

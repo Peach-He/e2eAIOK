@@ -1,4 +1,5 @@
 import torch
+import os
 from e2eAIOK.common.trainer.model_builder import ModelBuilder
 from e2eAIOK.DeNas.asr.lib.convolution import ConvolutionFrontEnd
 from e2eAIOK.DeNas.module.asr.linear import Linear
@@ -19,6 +20,9 @@ class ModelBuilderASR(ModelBuilder):
             self.cfg["mlp_ratio"] = mlp_ratio
             self.cfg["encoder_heads"] = encoder_heads
             self.cfg["d_model"] = d_model
+        return self.get_model()
+    
+    def get_model(self):
         modules = {}
         cnn = ConvolutionFrontEnd(
             input_shape = self.cfg["input_shape"],
@@ -50,17 +54,34 @@ class ModelBuilderASR(ModelBuilder):
         modules["ctc_lin"] = ctc_lin
         modules["normalize"] = normalize
         model = torch.nn.ModuleDict(modules)
-        
         return model
-    
+
     def load_pretrained_model(self):
-        model = self._init_model()
-        model_list = torch.nn.ModuleList([model["CNN"], model["Transformer"], model["seq_lin"], model["ctc_lin"]])
+        self._pre_process()
+        if not os.path.exists(self.cfg.ckpt):
+            raise RuntimeError(f"Can not find pre-trained model {self.cfg.ckpt}!")
+        self.logger.info(f"loading pretrained model at {self.cfg.ckpt}")
+
+        super_model = self.get_model()
+        super_model_list = torch.nn.ModuleList([super_model["CNN"], super_model["Transformer"], super_model["seq_lin"], super_model["ctc_lin"]])
         pretrained_dict = torch.load(self.cfg["ckpt"], map_location=torch.device('cpu'))
-        model_list_dict = model_list.state_dict()
-        model_list_keys = list(model_list_dict.keys())
+        super_model_list_dict = super_model_list.state_dict()
+        super_model_list_keys = list(super_model_list_dict.keys())
         pretrained_keys = pretrained_dict.keys()
         for i, key in enumerate(pretrained_keys):
-            model_list_dict[model_list_keys[i]].copy_(pretrained_dict[key])
-        
-        return model
+            super_model_list_dict[super_model_list_keys[i]].copy_(pretrained_dict[key])
+
+        sub_model = self._init_model()
+        sub_model_list = torch.nn.ModuleList([sub_model["CNN"], sub_model["Transformer"], sub_model["seq_lin"], sub_model["ctc_lin"]])
+        sub_model_list_dict = sub_model_list.state_dict()
+        for k in sub_model_list_dict:
+            super_state = super_model_list_dict[k]
+            sub_state = super_state
+            for dim, size in enumerate(sub_model_list_dict[k].size()):
+                sub_state = sub_state.index_select(dim, torch.tensor(range(size)))
+            sub_model_list_dict[k].copy_(sub_state)
+
+        del super_model, pretrained_dict
+        self.model = sub_model
+        self._post_process()
+        return sub_model

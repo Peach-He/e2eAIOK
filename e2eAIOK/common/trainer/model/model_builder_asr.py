@@ -14,11 +14,14 @@ class ModelBuilderASR(ModelBuilder):
         if self.cfg.best_model_structure != None:
             with open(self.cfg.best_model_structure, 'r') as f:
                 arch = f.readlines()[-1]
-            num_encoder_layers, mlp_ratio, encoder_heads, d_model = decode_arch_tuple(arch)
-            self.cfg["num_encoder_layers"] = num_encoder_layers
-            self.cfg["mlp_ratio"] = mlp_ratio
-            self.cfg["encoder_heads"] = encoder_heads
-            self.cfg["d_model"] = d_model
+            encoder_depth, encoder_mlp_ratio, encoder_num_heads, decoder_depth, decoder_mlp_ratio, decoder_num_heads, model_dim = decode_arch_tuple(arch)
+            self.cfg["num_encoder_layers"] = encoder_depth
+            self.cfg["encoder_mlp_ratio"] = encoder_mlp_ratio
+            self.cfg["encoder_heads"] = encoder_num_heads
+            self.cfg["num_decoder_layers"] = decoder_depth
+            self.cfg["decoder_mlp_ratio"] = decoder_mlp_ratio
+            self.cfg["decoder_heads"] = decoder_num_heads
+            self.cfg["d_model"] = model_dim
         modules = {}
         cnn = ConvolutionFrontEnd(
             input_shape = self.cfg["input_shape"],
@@ -34,11 +37,11 @@ class ModelBuilderASR(ModelBuilder):
             output_neurons=self.cfg["output_neurons"], 
             d_model=self.cfg["d_model"], 
             encoder_heads=self.cfg["encoder_heads"], 
-            nhead=self.cfg["nhead"], 
+            decoder_heads=self.cfg["decoder_heads"], 
             num_encoder_layers=self.cfg["num_encoder_layers"], 
             num_decoder_layers=self.cfg["num_decoder_layers"], 
-            mlp_ratio=self.cfg["mlp_ratio"], 
-            d_ffn=self.cfg["d_ffn"], 
+            encoder_mlp_ratio=self.cfg["encoder_mlp_ratio"], 
+            decoder_mlp_ratio=self.cfg["decoder_mlp_ratio"], 
             transformer_dropout=self.cfg["transformer_dropout"]
         )
         ctc_lin = Linear(input_size=self.cfg["d_model"], n_neurons=self.cfg["output_neurons"])

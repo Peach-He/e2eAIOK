@@ -57,8 +57,10 @@ def main(params):
         with open(params.supernet_cfg) as f:
             cfg = edict(yaml.safe_load(f))
         super_net = TransformerASRSuper
-        search_space = {'num_heads': cfg.SEARCH_SPACE.NUM_HEADS, 'mlp_ratio': cfg.SEARCH_SPACE.MLP_RATIO,
-                        'embed_dim': cfg.SEARCH_SPACE.EMBED_DIM , 'depth': cfg.SEARCH_SPACE.DEPTH}
+        search_space = {'encoder_num_heads': cfg.SEARCH_SPACE.ENCODER_NUM_HEADS, 'encoder_mlp_ratio': cfg.SEARCH_SPACE.ENCODER_MLP_RATIO,
+                        'model_dim': cfg.SEARCH_SPACE.MODEL_DIM , 'encoder_depth': cfg.SEARCH_SPACE.ENCODER_DEPTH,
+                        'decoder_num_heads': cfg.SEARCH_SPACE.DECODER_NUM_HEADS, 'decoder_mlp_ratio': cfg.SEARCH_SPACE.DECODER_MLP_RATIO,
+                        'decoder_depth': cfg.SEARCH_SPACE.DECODER_DEPTH}
     else:
         raise RuntimeError(f"Domain {params.domain} is not supported")
 

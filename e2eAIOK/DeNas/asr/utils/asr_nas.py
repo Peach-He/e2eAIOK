@@ -10,8 +10,14 @@ print(sys.path)
 from module.asr.utils import gen_transformer
 
 def asr_decode_cand_tuple(cand):
-    depth = cand[0]
-    return depth, list(cand[1:depth+1]), list(cand[depth + 1: 2 * depth + 1]), cand[-1]
+    encoder_depth = cand[0]
+    encoder_mlp_ratio = list(cand[1: encoder_depth+1])
+    encoder_num_heads = list(cand[encoder_depth+1: 2*encoder_depth+1])
+    decoder_depth = cand[2*encoder_depth+1]
+    decoder_mlp_ratio = list(cand[2*encoder_depth+2: 2*encoder_depth+2+decoder_depth])
+    decoder_num_heads = list(cand[2*encoder_depth+2+decoder_depth: 2*encoder_depth+2+2*decoder_depth])
+    model_dim = cand[-1]
+    return encoder_depth, encoder_num_heads, encoder_mlp_ratio, decoder_depth, decoder_num_heads, decoder_mlp_ratio, model_dim
 
 def asr_is_legal(cand, vis_dict, params, super_net):
     if cand not in vis_dict:
@@ -19,12 +25,15 @@ def asr_is_legal(cand, vis_dict, params, super_net):
     info = vis_dict[cand]
     if 'visited' in info:
         return False, super_net
-    depth, mlp_ratio, num_heads, d_model = asr_decode_cand_tuple(cand)
+    encoder_depth, encoder_num_heads, encoder_mlp_ratio, decoder_depth, decoder_num_heads, decoder_mlp_ratio, model_dim = asr_decode_cand_tuple(cand)
     sampled_config = {}
-    sampled_config['num_encoder_layers'] = depth
-    sampled_config['mlp_ratio'] = mlp_ratio
-    sampled_config['encoder_heads'] = num_heads
-    sampled_config['d_model'] = d_model
+    sampled_config['num_encoder_layers'] = encoder_depth
+    sampled_config['encoder_mlp_ratio'] = encoder_mlp_ratio
+    sampled_config['encoder_heads'] = encoder_num_heads
+    sampled_config['num_decoder_layers'] = decoder_depth
+    sampled_config['decoder_mlp_ratio'] = decoder_mlp_ratio
+    sampled_config['decoder_heads'] = decoder_num_heads
+    sampled_config['d_model'] = model_dim
     super_net = gen_transformer(**sampled_config)
     total_params = sum(p.numel() for p in super_net.parameters() if p.requires_grad)
     info['params'] =  total_params / 10.**6
@@ -35,13 +44,21 @@ def asr_is_legal(cand, vis_dict, params, super_net):
 
 def asr_populate_random_func(search_space):
     cand_tuple = list()
-    dimensions = ['mlp_ratio', 'num_heads']
-    depth = random.choice(search_space['depth'])
-    cand_tuple.append(depth)
-    for dimension in dimensions:
-        for i in range(depth):
-            cand_tuple.append(random.choice(search_space[dimension]))
-    cand_tuple.append(random.choice(search_space['embed_dim']))
+    # encoder
+    encoder_layers = ['encoder_mlp_ratio', 'encoder_num_heads']
+    encoder_depth = random.choice(search_space['encoder_depth'])
+    cand_tuple.append(encoder_depth)
+    for layer in encoder_layers:
+        for i in range(encoder_depth):
+            cand_tuple.append(random.choice(search_space[layer]))
+    # decoder
+    decoder_layers = ['decoder_mlp_ratio', 'decoder_num_heads']
+    decoder_depth = random.choice(search_space['decoder_depth'])
+    cand_tuple.append(decoder_depth)
+    for layer in decoder_layers:
+        for i in range(decoder_depth):
+            cand_tuple.append(random.choice(search_space[layer]))
+    cand_tuple.append(random.choice(search_space['model_dim']))
     return tuple(cand_tuple)
 
 def asr_mutation_random_func(m_prob, s_prob, search_space, top_candidates):

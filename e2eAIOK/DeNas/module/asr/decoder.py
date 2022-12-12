@@ -125,7 +125,7 @@ class TransformerDecoder(nn.Module):
         self,
         num_layers,
         nhead,
-        d_ffn,
+        mlp_ratio,
         d_model,
         kdim=None,
         vdim=None,
@@ -134,11 +134,12 @@ class TransformerDecoder(nn.Module):
         normalize_before=False
     ):
         super().__init__()
-        self.layers = torch.nn.ModuleList(
-            [
+        self.layers = nn.ModuleList()
+        for i in range(num_layers):
+            self.layers.append(
                 TransformerDecoderLayer(
-                    d_ffn=d_ffn,
-                    nhead=nhead,
+                    d_ffn=int(mlp_ratio[i]*d_model),
+                    nhead=nhead[i],
                     d_model=d_model,
                     kdim=kdim,
                     vdim=vdim,
@@ -146,9 +147,7 @@ class TransformerDecoder(nn.Module):
                     activation=activation,
                     normalize_before=normalize_before,
                 )
-                for _ in range(num_layers)
-            ]
-        )
+            )
         self.norm = LayerNorm(d_model, eps=1e-6)
 
     def forward(

@@ -111,7 +111,8 @@ def compute_diversity_score(model_type, net, *inputs):
         input_ids, input_masks, input_segments = inputs
         output, pooled_output = net.forward(input_ids, input_masks, input_segments)
     elif model_type == "asr":
-        output, _ = net.encode(inputs[0])
+        # output, _ = net.encode(inputs[0])
+        encoder_out, output = net.forward(inputs[0], inputs[1])
     torch.sum(output).backward()
 
     # select the gradients that we want to use for search/prune
@@ -158,7 +159,8 @@ def compute_saliency_score(model_type, net, *inputs):
         input_ids, input_masks, input_segments = inputs
         output, pooled_output = net.forward(input_ids, input_masks, input_segments)
     elif model_type == "asr":
-        output, _ = net.encode(inputs[0])
+        # output, _ = net.encode(inputs[0])
+        encoder_out, output = net.forward(inputs[0], inputs[1])
 
     torch.sum(output).backward()
 
@@ -205,7 +207,8 @@ def do_compute_nas_score_transformer(model_type, model, resolution, batch_size, 
         disversity_score_list = compute_diversity_score(model_type, model, input_ids, input_masks, input_segments)
     elif model_type == "asr":
         input = torch.randn(size=[batch_size, 400, 20, 64])
-        disversity_score_list = compute_diversity_score(model_type, model, input)
+        tgt = torch.randint(5000, size=[batch_size, 100])
+        disversity_score_list = compute_diversity_score(model_type, model, input, tgt)
     disversity_score = 0
     for grad_abs in disversity_score_list:
         if len(grad_abs.shape) == 0:
@@ -218,7 +221,7 @@ def do_compute_nas_score_transformer(model_type, model, resolution, batch_size, 
     elif model_type == "bert":
         grads_abs_list = compute_saliency_score(model_type, model, input_ids, input_masks, input_segments)
     elif model_type == "asr":
-        grads_abs_list = compute_saliency_score(model_type, model, input)
+        grads_abs_list = compute_saliency_score(model_type, model, input, tgt)
    
     saliency_score = 0
     for grad_abs in grads_abs_list:

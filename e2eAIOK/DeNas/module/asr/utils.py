@@ -1,6 +1,7 @@
 import torch
 import os
 import logging
+from easydict import EasyDict as edict
 
 from asr.supernet_asr import TransformerASRSuper
 from e2eAIOK.common.trainer.model.model_builder_asr import ModelBuilderASR
@@ -53,7 +54,8 @@ def load_pretrained_model(ckpt):
         raise RuntimeError(f"Can not find pre-trained model {ckpt}!")
     logger.info(f"loading pretrained model at {ckpt}")
 
-    super_model = ModelBuilderASR(supernet_config)._init_model()
+    cfg = edict(supernet_config)
+    super_model = ModelBuilderASR(cfg)._init_model()
     super_model_list = torch.nn.ModuleList([super_model["CNN"], super_model["Transformer"], super_model["seq_lin"], super_model["ctc_lin"]])
     pretrained_dict = torch.load(ckpt, map_location=torch.device('cpu'))
     super_model_list_dict = super_model_list.state_dict()

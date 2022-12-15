@@ -24,10 +24,11 @@ def construct_model_with_structure(structure):
     net = gen_transformer(**sampled_config)
     return net
 
-def construct_model_with_compression(params, sparsity):
-    model = load_pretrained_model(params.ckpt)['transformer']
+def construct_model_with_compression(sparsity, params):
+    model = load_pretrained_model(params.ckpt)['Transformer']
     params_to_prune = tuple([(layer, "weight") for layer in model.modules() if hasattr(layer, 'weight')])
-    prune.global_unstructured(params_to_prune)
+    prune.global_unstructured(params_to_prune, prune.L1Unstructured, amount=sparsity)
+    [prune.remove(module, 'weight') for module in model.modules() if hasattr(module, 'weight')]
     return model
 
 def asr_is_legal(cand, vis_dict, params, super_net):
@@ -36,10 +37,10 @@ def asr_is_legal(cand, vis_dict, params, super_net):
     info = vis_dict[cand]
     if 'visited' in info:
         return False, super_net
-    if params.construct_type == "inc":
-        model = construct_model_with_compression(params, cand)
-    else:
+    if params.structure:
         model = construct_model_with_structure(cand)
+    else:
+        model = construct_model_with_compression(cand, params)
     total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     info['params'] =  total_params / 10.**6
     if info['params'] > params.max_param_limits or info['params'] < params.min_param_limits:
@@ -59,13 +60,13 @@ def asr_populate_random_structure(search_space):
     return tuple(cand_tuple)
 
 def asr_populate_sparsity(search_space):
-    return random.choice(search_space)
+    return random.choice(search_space['sparsity'])
 
-def asr_populate_random_func(construct_type, search_space):
-    if construct_type == "inc":
-        return asr_populate_sparsity(search_space)
-    else:
+def asr_populate_random_func(search_space, structure):
+    if structure:
         return asr_populate_random_structure(search_space)
+    else:
+        return asr_populate_sparsity(search_space)
 
 def asr_mutation_random_func(m_prob, s_prob, search_space, top_candidates):
     cand = list(random.choice(top_candidates))

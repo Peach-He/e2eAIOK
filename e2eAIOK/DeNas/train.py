@@ -65,7 +65,10 @@ def main(args):
         metric = bert_create_metric(cfg)
         trainer = BERTTrainer(cfg, model, train_dataloader, eval_dataloader, other_data, optimizer, criterion, scheduler, metric)
     elif args.domain == 'asr':
-        model = ModelBuilderASR(cfg).create_model()
+        if cfg.structure:
+            model = ModelBuilderASR(cfg).create_model()
+        else:
+            model = ModelBuilderASR(cfg).load_pretrained_model_and_prune()
         tokenizer = sp.SentencePieceProcessor()
         train_dataloader, eval_dataloader = DataBuilderLibriSpeech(cfg, tokenizer).get_dataloader()
         optimizer = torch.optim.Adam(model.parameters(), lr=cfg["lr_adam"], betas=(0.9, 0.98), eps=0.000000001)

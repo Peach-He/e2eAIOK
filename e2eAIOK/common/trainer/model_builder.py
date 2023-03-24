@@ -5,7 +5,7 @@ import torch
 import e2eAIOK.common.trainer.utils.extend_distributed as ext_dist
 from e2eAIOK.common.trainer.utils.utils import get_device
 from e2eAIOK.DeNas.pruner.PrunerFactory import PrunerFactory
-from e2eAIOK.DeNas.pruner.model_speedup.speedup import optimize_model
+from e2eAIOK.DeNas.pruner.model_speedup.speedup import optimize_model, optimize_model_directly
 
 class ModelBuilder():
     """
@@ -75,7 +75,12 @@ class ModelBuilder():
         """
             model pruning and speedup
         """
-        pruner = PrunerFactory.create_pruner(self.cfg.pruner.backend, self.cfg.pruner.algo, self.cfg.pruner.layer_list, self.cfg.pruner.exclude_list)
+        origin_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+        pruner = PrunerFactory.create_pruner(self.cfg.pruner.backend, self.cfg.pruner.algo, self.cfg.pruner.layer_list, self.cfg.pruner.exclude_list, self.cfg.pruner)
         pruner.prune(self.model, self.cfg.pruner.sparsity)
-        if self.cfg.pruner.speedup:
-            self.model = optimize_model(self.model)
+        # if self.cfg.pruner.speedup:
+        #     prune_heads = hasattr(self.model, 'prune_heads')
+        #     self.model = optimize_model(self.model, prune_heads=prune_heads)
+        optimize_model_directly(self.model)
+        pruned_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+        self.logger.info(f"original model size: {origin_params}, pruned model size: {pruned_params}")

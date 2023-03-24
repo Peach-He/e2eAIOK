@@ -15,7 +15,7 @@ from e2eAIOK.DeNas.asr.utils.asr_nas import asr_is_legal, asr_populate_random_fu
 from e2eAIOK.DeNas.thirdparty.utils import hf_is_legal, hf_populate_random_func
 from e2eAIOK.DeNas.thirdparty.supernet_hf import SuperHFModel
 from e2eAIOK.DeNas.pruner.PrunerFactory import PrunerFactory
-from e2eAIOK.DeNas.pruner.model_speedup.speedup import optimize_model
+from e2eAIOK.DeNas.pruner.model_speedup.speedup import optimize_model, optimize_model_directly
 
  
 class BaseSearchEngine(ABC):
@@ -47,11 +47,12 @@ class BaseSearchEngine(ABC):
             if 'visited' in info:
                 return False
             cand_model = deepcopy(self.super_net)
-            pruner = PrunerFactory.create_pruner(self.params.pruner.backend, self.params.pruner.algo, self.params.pruner.layer_list, self.params.pruner.exclude_list)
+            pruner = PrunerFactory.create_pruner(**self.params.pruner)
             self.cand_model, mask = pruner.prune(cand_model, cand)
             if self.params.pruner.speedup:
-                prune_heads = hasattr(self.cand_model, 'prune_heads')
-                self.cand_model = optimize_model(self.cand_model, prune_heads=prune_heads)
+                # prune_heads = hasattr(self.cand_model, 'prune_heads')
+                # self.cand_model = optimize_model(self.cand_model, prune_heads=prune_heads)
+                self.cand_model = optimize_model_directly(self.cand_model)
 
             total_params = sum(p.numel() for p in self.super_net.parameters() if p.requires_grad)
             total_params_pruned = sum(p.numel() for p in self.cand_model.parameters() if p.requires_grad)

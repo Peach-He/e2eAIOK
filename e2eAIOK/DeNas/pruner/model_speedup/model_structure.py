@@ -62,7 +62,7 @@ class BertStructure(ModelStructure):
     """
         bert model structure
     """
-    PATTERN_PREFIX = "bert.encoder.layer.[0-9]+."
+    PATTERN_PREFIX = "bert.encoder.layer(s|).[0-9]+."
     LAYER_PATTERNS = dict(
         query="attention.self.query",
         key="attention.self.key",

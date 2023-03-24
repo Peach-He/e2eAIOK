@@ -12,7 +12,7 @@ from e2eAIOK.DeNas.asr.data.processing.features import InputNormalization
 from e2eAIOK.DeNas.module.asr.utils import gen_transformer
 from e2eAIOK.DeNas.utils import decode_arch_tuple
 from e2eAIOK.DeNas.pruner.PrunerFactory import PrunerFactory
-from e2eAIOK.DeNas.pruner.model_speedup.speedup import optimize_model
+from e2eAIOK.DeNas.pruner.model_speedup.speedup import optimize_model, optimize_model_directly
 
 class ModelBuilderASRDeNas(ModelBuilderASR):
     def __init__(self, cfg):
@@ -78,8 +78,12 @@ class ModelBuilderASRDeNas(ModelBuilderASR):
         """
             model pruning and speedup
         """
-        pruner = PrunerFactory.create_pruner(self.cfg.pruner.backend, self.cfg.pruner.algo, self.cfg.pruner.layer_list, self.cfg.pruner.exclude_list)
+        origin_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+        pruner = PrunerFactory.create_pruner(**self.cfg.pruner)
         pruner.prune(self.model["Transformer"], self.cfg.pruner.sparsity)
         if self.cfg.pruner.speedup:
-            prune_heads = hasattr(self.model["Transformer"], 'prune_heads')
-            self.model["Transformer"] = optimize_model(self.model["Transformer"], prune_heads=prune_heads)
+            # prune_heads = hasattr(self.model["Transformer"], 'prune_heads')
+            # self.model["Transformer"] = optimize_model(self.model["Transformer"], prune_heads=prune_heads)
+            optimize_model_directly(self.model["Transformer"])
+        pruned_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+        self.logger.info(f"original model size: {origin_params}, pruned model size: {pruned_params}")
